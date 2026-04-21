@@ -11,9 +11,7 @@ import { detectApiBaseFromLocation, normalizeApiBase } from '@/utils/connection'
 import { LANGUAGE_LABEL_KEYS, LANGUAGE_ORDER } from '@/utils/constants';
 import {
   BRAND_ABBR,
-  BRAND_EDITION,
   BRAND_FULL_NAME_WITH_EDITION,
-  BRAND_NAME,
 } from '@/utils/branding';
 import { isSupportedLanguage } from '@/utils/language';
 import { INLINE_LOGO_JPEG } from '@/assets/logoInline';
@@ -191,9 +189,9 @@ export function LoginPage() {
       {/* 左侧品牌展示区 */}
       <div className={styles.brandPanel}>
         <div className={styles.brandContent}>
-          <span className={styles.brandWord}>CLI</span>
-          <span className={styles.brandWord}>PROXY</span>
-          <span className={styles.brandWord}>API</span>
+          <span className={styles.brandWord}>CPA</span>
+          <span className={styles.brandWord}>WEBUI</span>
+          <span className={styles.brandWord}>UV</span>
         </div>
       </div>
 
@@ -203,8 +201,8 @@ export function LoginPage() {
           /* 启动动画 */
           <div className={styles.splashContent}>
             <img src={INLINE_LOGO_JPEG} alt={BRAND_ABBR} className={styles.splashLogo} />
-            <h1 className={styles.splashTitle}>{BRAND_NAME}</h1>
-            <p className={styles.splashSubtitle}>{`Management Center / ${BRAND_EDITION}`}</p>
+            <h1 className={styles.splashTitle}>{BRAND_ABBR}</h1>
+            <p className={styles.splashSubtitle}>{BRAND_FULL_NAME_WITH_EDITION}</p>
             <div className={styles.splashLoader}>
               <div className={styles.splashLoaderBar} />
             </div>

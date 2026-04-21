@@ -13,10 +13,12 @@ import {
   useThemeStore,
 } from '@/stores';
 import { configApi, versionApi } from '@/services/api';
+import type { LatestVersionResponse } from '@/services/api/version';
 import { apiKeysApi } from '@/services/api/apiKeys';
 import { classifyModels } from '@/utils/models';
 import { STORAGE_KEY_AUTH } from '@/utils/constants';
-import { BRAND_ABBR, BRAND_FULL_NAME_WITH_EDITION, QUICK_LINKS } from '@/utils/branding';
+import { BRAND_ABBR, BRAND_FULL_NAME_WITH_EDITION, resolveQuickLinks } from '@/utils/branding';
+import { formatServerVersionInfo, formatWebUIVersionInfo } from '@/utils/versioning';
 import { INLINE_LOGO_JPEG } from '@/assets/logoInline';
 import iconGemini from '@/assets/icons/gemini.svg';
 import iconClaude from '@/assets/icons/claude.svg';
@@ -43,30 +45,14 @@ const MODEL_CATEGORY_ICONS: Record<string, string | { light: string; dark: strin
   minimax: iconMinimax,
 };
 
-const parseVersionSegments = (version?: string | null) => {
-  if (!version) return null;
-  const cleaned = version.trim().replace(/^v/i, '');
-  if (!cleaned) return null;
-  const parts = cleaned
-    .split(/[^0-9]+/)
-    .filter(Boolean)
-    .map((segment) => Number.parseInt(segment, 10))
-    .filter(Number.isFinite);
-  return parts.length ? parts : null;
-};
-
-const compareVersions = (latest?: string | null, current?: string | null) => {
-  const latestParts = parseVersionSegments(latest);
-  const currentParts = parseVersionSegments(current);
-  if (!latestParts || !currentParts) return null;
-  const length = Math.max(latestParts.length, currentParts.length);
-  for (let i = 0; i < length; i++) {
-    const l = latestParts[i] || 0;
-    const c = currentParts[i] || 0;
-    if (l > c) return 1;
-    if (l < c) return -1;
+const getPanelRepositoryFromConfig = (value: unknown) => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return '';
+  const remoteManagement = (value as Record<string, unknown>)['remote-management'];
+  if (!remoteManagement || typeof remoteManagement !== 'object' || Array.isArray(remoteManagement)) {
+    return '';
   }
-  return 0;
+  const repository = (remoteManagement as Record<string, unknown>)['panel-github-repository'];
+  return typeof repository === 'string' ? repository.trim() : '';
 };
 
 export function SystemPage() {
@@ -93,6 +79,8 @@ export function SystemPage() {
   const [requestLogTouched, setRequestLogTouched] = useState(false);
   const [requestLogSaving, setRequestLogSaving] = useState(false);
   const [checkingVersion, setCheckingVersion] = useState(false);
+  const [versionDetails, setVersionDetails] = useState<LatestVersionResponse | null>(null);
+  const [installingUpdate, setInstallingUpdate] = useState(false);
 
   const apiKeysCache = useRef<string[]>([]);
   const versionTapCount = useRef(0);
@@ -107,11 +95,27 @@ export function SystemPage() {
   const requestLogDirty = requestLogDraft !== requestLogEnabled;
   const canEditRequestLog = auth.connectionStatus === 'connected' && Boolean(config);
 
-  const appVersion = __APP_VERSION__ || t('system_info.version_unknown');
+  const appVersion =
+    formatWebUIVersionInfo(__APP_VERSION__).displayVersion || t('system_info.version_unknown');
   const apiVersion = auth.serverVersion || t('system_info.version_unknown');
   const buildTime = auth.serverBuildDate
     ? new Date(auth.serverBuildDate).toLocaleString(i18n.language)
     : t('system_info.version_unknown');
+  const configuredRepository = getPanelRepositoryFromConfig(config?.raw);
+  const quickLinks = useMemo(
+    () => resolveQuickLinks(versionDetails?.repository || configuredRepository),
+    [configuredRepository, versionDetails?.repository]
+  );
+  const currentVersionDisplay =
+    versionDetails?.current?.['display-version'] ||
+    formatServerVersionInfo(apiVersion).displayVersion ||
+    t('system_info.version_unknown');
+  const latestVersionDisplay =
+    versionDetails?.latest?.['display-version'] ||
+    formatServerVersionInfo(versionDetails?.['latest-version']).displayVersion ||
+    t('system_info.version_check_idle');
+  const installSupported = Boolean(versionDetails?.['install-supported']);
+  const updateAvailable = Boolean(versionDetails?.['update-available']);
 
   const getIconForCategory = (categoryId: string): string | null => {
     const iconEntry = MODEL_CATEGORY_ICONS[categoryId];
@@ -286,21 +290,14 @@ export function SystemPage() {
     setCheckingVersion(true);
     try {
       const data = await versionApi.checkLatest();
-      const latestRaw = data?.['latest-version'] ?? data?.latest_version ?? data?.latest ?? '';
-      const latest = typeof latestRaw === 'string' ? latestRaw : String(latestRaw ?? '');
-      const comparison = compareVersions(latest, auth.serverVersion);
-
+      setVersionDetails(data);
+      const latest = data?.['latest-version'] || data?.latest?.['display-version'] || '';
       if (!latest) {
         showNotification(t('system_info.version_check_error'), 'error');
         return;
       }
 
-      if (comparison === null) {
-        showNotification(t('system_info.version_current_missing'), 'warning');
-        return;
-      }
-
-      if (comparison > 0) {
+      if (data?.['update-available']) {
         showNotification(t('system_info.version_update_available', { version: latest }), 'warning');
       } else {
         showNotification(t('system_info.version_is_latest'), 'success');
@@ -313,7 +310,50 @@ export function SystemPage() {
     } finally {
       setCheckingVersion(false);
     }
-  }, [auth.serverVersion, showNotification, t]);
+  }, [showNotification, t]);
+
+  const handleInstallUpdate = useCallback(() => {
+    showConfirmation({
+      title: t('system_info.version_install_button', { defaultValue: 'Install update' }),
+      message: t('system_info.version_install_confirm', {
+        version: latestVersionDisplay,
+        defaultValue: `Install ${latestVersionDisplay} now? The local CPA service will restart during the update.`,
+      }),
+      variant: 'danger',
+      confirmText: t('system_info.version_install_button', { defaultValue: 'Install update' }),
+      onConfirm: async () => {
+        try {
+          setInstallingUpdate(true);
+          const result = await versionApi.installLatest();
+          setVersionDetails((previous) =>
+            previous
+              ? {
+                  ...previous,
+                  'current-version': result?.['current-version'] ?? previous['current-version'],
+                  'latest-version': result?.['latest-version'] ?? previous['latest-version'],
+                  repository: result?.repository ?? previous.repository,
+                  'release-page': result?.['release-page'] ?? previous['release-page'],
+                }
+              : previous
+          );
+          showNotification(
+            t('system_info.version_install_started', {
+              defaultValue: 'Update package downloaded. CPA-UV is restarting to install it.',
+            }),
+            'warning'
+          );
+        } catch (error: unknown) {
+          setInstallingUpdate(false);
+          const message =
+            error instanceof Error ? error.message : typeof error === 'string' ? error : '';
+          showNotification(
+            `${t('system_info.version_install_failed', { defaultValue: 'Failed to install update' })}${message ? `: ${message}` : ''}`,
+            'error'
+          );
+        }
+      },
+    });
+  }, [latestVersionDisplay, showConfirmation, showNotification, t]);
 
   useEffect(() => {
     fetchConfig().catch(() => {
@@ -339,6 +379,39 @@ export function SystemPage() {
     fetchModels();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auth.connectionStatus, auth.apiBase]);
+
+  useEffect(() => {
+    if (!installingUpdate) return;
+
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const data = await versionApi.checkLatest();
+        if (cancelled) return;
+        setVersionDetails(data);
+        setInstallingUpdate(false);
+        showNotification(
+          t('system_info.version_install_completed', {
+            defaultValue: 'Update install finished and CPA-UV is reachable again.',
+          }),
+          'success'
+        );
+      } catch {
+        // Server may still be restarting.
+      }
+    };
+
+    const timer = window.setInterval(() => {
+      void poll();
+    }, 4000);
+
+    void poll();
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [installingUpdate, showNotification, t]);
 
   return (
     <div className={styles.container}>
@@ -394,11 +467,69 @@ export function SystemPage() {
           </div>
         </Card>
 
+        <Card
+          title={t('system_info.version_check_title')}
+          extra={
+            <div className={styles.versionActions}>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => void handleVersionCheck()}
+                loading={checkingVersion}
+              >
+                {t('system_info.version_check_button')}
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleInstallUpdate}
+                disabled={!updateAvailable || !installSupported || installingUpdate}
+                loading={installingUpdate}
+              >
+                {t('system_info.version_install_button', { defaultValue: 'Install update' })}
+              </Button>
+            </div>
+          }
+        >
+          <div className={styles.versionCheck}>
+            <p className={styles.sectionDescription}>{t('system_info.version_check_desc')}</p>
+            <div className={styles.versionInfo}>
+              <div className={styles.versionItem}>
+                <div className={styles.versionLabel}>{t('system_info.version_current_label')}</div>
+                <div className={styles.versionValue}>{currentVersionDisplay}</div>
+              </div>
+              <div className={styles.versionItem}>
+                <div className={styles.versionLabel}>{t('system_info.version_latest_label')}</div>
+                <div className={styles.versionValue}>{latestVersionDisplay}</div>
+              </div>
+              <div className={styles.versionItem}>
+                <div className={styles.versionLabel}>
+                  {t('system_info.version_repo_label', { defaultValue: 'Update repository' })}
+                </div>
+                <div className={styles.versionValue}>{quickLinks.mainRepo}</div>
+              </div>
+              <div className={styles.versionItem}>
+                <div className={styles.versionLabel}>
+                  {t('system_info.version_asset_label', { defaultValue: 'Platform package' })}
+                </div>
+                <div className={styles.versionValue}>
+                  {versionDetails?.['asset-name'] ||
+                    t('system_info.version_asset_pending', {
+                      defaultValue: 'Check for updates to load the package name',
+                    })}
+                </div>
+              </div>
+            </div>
+            {versionDetails?.['install-note'] && (
+              <div className="hint">{versionDetails['install-note']}</div>
+            )}
+          </div>
+        </Card>
+
         <Card title={t('system_info.quick_links_title')}>
           <p className={styles.sectionDescription}>{t('system_info.quick_links_desc')}</p>
           <div className={styles.quickLinks}>
             <a
-              href={QUICK_LINKS.mainRepo}
+              href={quickLinks.mainRepo}
               target="_blank"
               rel="noopener noreferrer"
               className={styles.linkCard}
@@ -416,7 +547,7 @@ export function SystemPage() {
             </a>
 
             <a
-              href={QUICK_LINKS.managementAsset}
+              href={quickLinks.managementSource}
               target="_blank"
               rel="noopener noreferrer"
               className={styles.linkCard}
@@ -434,7 +565,7 @@ export function SystemPage() {
             </a>
 
             <a
-              href={QUICK_LINKS.docs}
+              href={versionDetails?.['release-page'] || quickLinks.releasePage}
               target="_blank"
               rel="noopener noreferrer"
               className={styles.linkCard}

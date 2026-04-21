@@ -6,6 +6,9 @@ import { createHash } from 'crypto';
 import { spawnSync } from 'child_process';
 import fs from 'fs';
 
+const gitDescribePattern = /^(.+)-\d+-g[0-9a-f]+(?:-dirty)?$/i;
+const DEFAULT_WEBUI_BASELINE_VERSION = process.env.CPA_UV_WEBUI_BASELINE_VERSION || '1.7.41';
+
 // Get version from environment, git tag, or package.json
 function runGitCommand(args: string[]): string {
   const result = spawnSync('git', args, {
@@ -43,6 +46,75 @@ function getVersion(): string {
   return 'dev';
 }
 
+function formatVersion(rawVersion: string): string {
+  const raw = normalizeVersionSource(rawVersion);
+  if (!raw || raw === 'dev') {
+    return raw || 'dev';
+  }
+
+  const displayMatch = raw.match(/^(\d+(?:\.\d+){2})-UV\s*\((\d+(?:\.\d+)*)\)$/i);
+  if (displayMatch) {
+    return `${displayMatch[1]}-UV (${normalizeUvVersion(displayMatch[2])})`;
+  }
+
+  const baselineMatch = raw.match(/^v?(\d+(?:\.\d+){2})(?:[-_.]?uv[-_.]?(\d+(?:[-_.]\d+)*))?$/i);
+  if (baselineMatch) {
+    let baselineVersion = baselineMatch[1];
+    let uvVersion = normalizeUvVersion(baselineMatch[2] || '');
+    if (baselineVersion !== DEFAULT_WEBUI_BASELINE_VERSION) {
+      if (uvVersion) {
+        baselineVersion = DEFAULT_WEBUI_BASELINE_VERSION;
+      } else {
+        uvVersion = normalizeUvVersion(baselineVersion);
+        baselineVersion = DEFAULT_WEBUI_BASELINE_VERSION;
+      }
+    } else if (!uvVersion) {
+      uvVersion = '1.0.0';
+    }
+    return `${baselineVersion}-UV (${uvVersion})`;
+  }
+
+  const uvOnlyMatch = raw.match(/^v?(\d+(?:\.\d+){0,2})$/i);
+  if (uvOnlyMatch) {
+    return `${DEFAULT_WEBUI_BASELINE_VERSION}-UV (${normalizeUvVersion(uvOnlyMatch[1])})`;
+  }
+
+  return raw;
+}
+
+function normalizeVersionSource(rawVersion: string): string {
+  let value = String(rawVersion || '').trim();
+  if (!value) {
+    return '';
+  }
+
+  const describeMatch = value.match(gitDescribePattern);
+  if (describeMatch) {
+    value = describeMatch[1];
+  }
+
+  return value.replace(/-dirty$/i, '').trim();
+}
+
+function normalizeUvVersion(rawVersion: string): string {
+  const parts = rawVersion
+    .trim()
+    .split(/[^0-9]+/)
+    .filter(Boolean)
+    .map((segment) => Number.parseInt(segment, 10))
+    .filter((segment) => Number.isFinite(segment));
+
+  if (!parts.length) {
+    return '';
+  }
+
+  while (parts.length < 3) {
+    parts.push(0);
+  }
+
+  return parts.join('.');
+}
+
 function emitManagementHtml() {
   return {
     name: 'emit-management-html',
@@ -74,7 +146,7 @@ export default defineConfig({
     emitManagementHtml()
   ],
   define: {
-    __APP_VERSION__: JSON.stringify(getVersion())
+    __APP_VERSION__: JSON.stringify(formatVersion(getVersion()))
   },
   resolve: {
     alias: {

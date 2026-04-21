@@ -311,7 +311,7 @@ export function DashboardPage() {
             />
             <span className={styles.pillText}>
               {serverVersion
-                ? `v${serverVersion.trim().replace(/^[vV]+/, '')}`
+                ? serverVersion.trim()
                 : t(
                     connectionStatus === 'connected'
                       ? 'common.connected'
