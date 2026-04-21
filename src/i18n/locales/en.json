@@ -1370,7 +1370,7 @@
     "models_error": "Failed to load model list",
     "models_count": "{{count}} available models",
     "version_check_title": "Update Check",
-    "version_check_desc": "Call the /latest-version endpoint to compare with the server version and see if an update is available.",
+    "version_check_desc": "Call the /latest-version endpoint exposed by CPA-UV to compare against the server version and check whether an update is available.",
     "version_current_label": "Current version",
     "version_latest_label": "Latest version",
     "version_check_button": "Check for updates",
@@ -1382,13 +1382,13 @@
     "version_current_missing": "Server version is unavailable; cannot compare",
     "version_unknown": "Unknown",
     "quick_links_title": "Quick Links",
-    "quick_links_desc": "Access project repositories and documentation for help and updates.",
+    "quick_links_desc": "Open the canonical CPA-UV repository, published management asset, and update guide.",
     "link_main_repo": "Main Repository",
-    "link_main_repo_desc": "CLI Proxy API core program source code",
+    "link_main_repo_desc": "Blackblock-inc/CPA-UV canonical source repository",
     "link_webui_repo": "WebUI Repository",
-    "link_webui_repo_desc": "Management Center frontend source code",
+    "link_webui_repo_desc": "Published management.html asset tracked in the CPA-UV repository",
     "link_docs": "Documentation",
-    "link_docs_desc": "Usage tutorials and configuration guides",
+    "link_docs_desc": "CPA-UV README, setup notes, and update guide",
     "clear_login_title": "Local Login Data",
     "clear_login_desc": "Clear locally saved login data and sign out. Usage stats pricing settings will remain untouched.",
     "clear_login_button": "Clear login data",
@@ -1483,9 +1483,9 @@
     "toggle_collapse": "Collapse sidebar"
   },
   "footer": {
-    "api_version": "CLI Proxy API Version",
+    "api_version": "CPA-UV Server Version",
     "build_date": "Build Time",
-    "version": "Management UI Version",
+    "version": "CPA-UV Management UI Version",
     "author": "Author"
   }
 }

@@ -1369,7 +1369,7 @@
     "models_error": "Не удалось загрузить список моделей",
     "models_count": "Доступно моделей: {{count}}",
     "version_check_title": "Проверка обновлений",
-    "version_check_desc": "Вызовите эндпоинт /latest-version, чтобы сравнить с версией сервера и узнать о доступных обновлениях.",
+    "version_check_desc": "Вызовите эндпоинт /latest-version из CPA-UV, чтобы сравнить версию сервера и проверить наличие обновлений.",
     "version_current_label": "Текущая версия",
     "version_latest_label": "Последняя версия",
     "version_check_button": "Проверить обновления",
@@ -1381,13 +1381,13 @@
     "version_current_missing": "Версия сервера недоступна; сравнение невозможно",
     "version_unknown": "Неизвестно",
     "quick_links_title": "Быстрые ссылки",
-    "quick_links_desc": "Доступ к репозиториям проекта и документации для помощи и обновлений.",
+    "quick_links_desc": "Откройте основной репозиторий CPA-UV, опубликованный management.html и руководство по обновлению.",
     "link_main_repo": "Основной репозиторий",
-    "link_main_repo_desc": "Исходный код основной программы CLI Proxy API",
+    "link_main_repo_desc": "Канонический репозиторий исходного кода Blackblock-inc/CPA-UV",
     "link_webui_repo": "Репозиторий WebUI",
-    "link_webui_repo_desc": "Исходный код фронтенда центра управления",
+    "link_webui_repo_desc": "Опубликованный management.html, отслеживаемый в репозитории CPA-UV",
     "link_docs": "Документация",
-    "link_docs_desc": "Учебные пособия и руководства по настройке",
+    "link_docs_desc": "README CPA-UV, примечания по настройке и руководство по обновлению",
     "clear_login_title": "Локальные данные входа",
     "clear_login_desc": "Очистите локально сохранённые данные входа и выполните выход. Настройки стоимости статистики использования сохранятся.",
     "clear_login_button": "Очистить данные входа",
@@ -1482,9 +1482,9 @@
     "toggle_collapse": "Свернуть боковую панель"
   },
   "footer": {
-    "api_version": "Версия CLI Proxy API",
+    "api_version": "Версия сервера CPA-UV",
     "build_date": "Время сборки",
-    "version": "Версия интерфейса управления",
+    "version": "Версия UI CPA-UV",
     "author": "Автор"
   }
 }

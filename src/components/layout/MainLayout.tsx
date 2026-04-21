@@ -33,6 +33,7 @@ import {
 } from '@/stores';
 import { triggerHeaderRefresh } from '@/hooks/useHeaderRefresh';
 import { LANGUAGE_LABEL_KEYS, LANGUAGE_ORDER } from '@/utils/constants';
+import { BRAND_ABBR, BRAND_FULL_NAME_WITH_EDITION } from '@/utils/branding';
 import { isSupportedLanguage } from '@/utils/language';
 import type { Theme } from '@/types';
 
@@ -233,8 +234,8 @@ export function MainLayout() {
   const brandCollapseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const headerRef = useRef<HTMLElement | null>(null);
 
-  const fullBrandName = 'CLI Proxy API Management Center';
-  const abbrBrandName = t('title.abbr');
+  const fullBrandName = BRAND_FULL_NAME_WITH_EDITION;
+  const abbrBrandName = BRAND_ABBR;
   const isLogsPage = location.pathname.startsWith('/logs');
 
   // 将顶栏高度写入 CSS 变量，确保侧栏/内容区计算一致，防止滚动时抖动
@@ -528,7 +529,7 @@ export function MainLayout() {
           >
             {sidebarCollapsed ? headerIcons.chevronRight : headerIcons.chevronLeft}
           </button>
-          <img src={INLINE_LOGO_JPEG} alt="CPAMC logo" className="brand-logo" />
+          <img src={INLINE_LOGO_JPEG} alt={`${BRAND_ABBR} logo`} className="brand-logo" />
           <div
             className={`brand-header ${brandExpanded ? 'expanded' : 'collapsed'}`}
             onClick={handleBrandClick}

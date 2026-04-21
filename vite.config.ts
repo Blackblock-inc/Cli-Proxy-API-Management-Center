@@ -2,10 +2,20 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { viteSingleFile } from 'vite-plugin-singlefile';
 import path from 'path';
-import { execSync } from 'child_process';
+import { createHash } from 'crypto';
+import { spawnSync } from 'child_process';
 import fs from 'fs';
 
 // Get version from environment, git tag, or package.json
+function runGitCommand(args: string[]): string {
+  const result = spawnSync('git', args, {
+    cwd: __dirname,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'ignore']
+  });
+  return result.status === 0 ? result.stdout.trim() : '';
+}
+
 function getVersion(): string {
   // 1. Environment variable (set by GitHub Actions)
   if (process.env.VERSION) {
@@ -13,13 +23,11 @@ function getVersion(): string {
   }
 
   // 2. Try git tag
-  try {
-    const gitTag = execSync('git describe --tags --exact-match 2>/dev/null || git describe --tags 2>/dev/null || echo ""', { encoding: 'utf8' }).trim();
-    if (gitTag) {
-      return gitTag;
-    }
-  } catch {
-    // Git not available or no tags
+  const gitTag =
+    runGitCommand(['describe', '--tags', '--exact-match']) ||
+    runGitCommand(['describe', '--tags']);
+  if (gitTag) {
+    return gitTag;
   }
 
   // 3. Fall back to package.json version
@@ -35,13 +43,35 @@ function getVersion(): string {
   return 'dev';
 }
 
+function emitManagementHtml() {
+  return {
+    name: 'emit-management-html',
+    closeBundle() {
+      const distDir = path.resolve(__dirname, 'dist');
+      const indexPath = path.join(distDir, 'index.html');
+      const managementPath = path.join(distDir, 'management.html');
+      const hashPath = path.join(distDir, 'management.html.sha256.txt');
+
+      if (!fs.existsSync(indexPath)) {
+        return;
+      }
+
+      const html = fs.readFileSync(indexPath);
+      fs.writeFileSync(managementPath, html);
+      const sha256 = createHash('sha256').update(html).digest('hex').toUpperCase();
+      fs.writeFileSync(hashPath, `${sha256}  management.html\n`, 'utf8');
+    }
+  };
+}
+
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
     react(),
     viteSingleFile({
       removeViteModuleLoader: true
-    })
+    }),
+    emitManagementHtml()
   ],
   define: {
     __APP_VERSION__: JSON.stringify(getVersion())

@@ -9,6 +9,12 @@ import { IconEye, IconEyeOff } from '@/components/ui/icons';
 import { useAuthStore, useLanguageStore, useNotificationStore } from '@/stores';
 import { detectApiBaseFromLocation, normalizeApiBase } from '@/utils/connection';
 import { LANGUAGE_LABEL_KEYS, LANGUAGE_ORDER } from '@/utils/constants';
+import {
+  BRAND_ABBR,
+  BRAND_EDITION,
+  BRAND_FULL_NAME_WITH_EDITION,
+  BRAND_NAME,
+} from '@/utils/branding';
 import { isSupportedLanguage } from '@/utils/language';
 import { INLINE_LOGO_JPEG } from '@/assets/logoInline';
 import type { ApiError } from '@/types';
@@ -196,9 +202,9 @@ export function LoginPage() {
         {showSplash ? (
           /* 启动动画 */
           <div className={styles.splashContent}>
-            <img src={INLINE_LOGO_JPEG} alt="CPAMC" className={styles.splashLogo} />
-            <h1 className={styles.splashTitle}>{t('splash.title')}</h1>
-            <p className={styles.splashSubtitle}>{t('splash.subtitle')}</p>
+            <img src={INLINE_LOGO_JPEG} alt={BRAND_ABBR} className={styles.splashLogo} />
+            <h1 className={styles.splashTitle}>{BRAND_NAME}</h1>
+            <p className={styles.splashSubtitle}>{`Management Center / ${BRAND_EDITION}`}</p>
             <div className={styles.splashLoader}>
               <div className={styles.splashLoaderBar} />
             </div>
@@ -213,7 +219,7 @@ export function LoginPage() {
             <div className={styles.loginCard}>
               <div className={styles.loginHeader}>
                 <div className={styles.titleRow}>
-                  <div className={styles.title}>{t('title.login')}</div>
+                  <div className={styles.title}>{BRAND_FULL_NAME_WITH_EDITION}</div>
                   <Select
                     className={styles.languageSelect}
                     value={language}

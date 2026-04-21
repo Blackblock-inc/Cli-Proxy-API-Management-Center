@@ -16,6 +16,7 @@ import { configApi, versionApi } from '@/services/api';
 import { apiKeysApi } from '@/services/api/apiKeys';
 import { classifyModels } from '@/utils/models';
 import { STORAGE_KEY_AUTH } from '@/utils/constants';
+import { BRAND_ABBR, BRAND_FULL_NAME_WITH_EDITION, QUICK_LINKS } from '@/utils/branding';
 import { INLINE_LOGO_JPEG } from '@/assets/logoInline';
 import iconGemini from '@/assets/icons/gemini.svg';
 import iconClaude from '@/assets/icons/claude.svg';
@@ -345,8 +346,8 @@ export function SystemPage() {
       <div className={styles.content}>
         <Card className={styles.aboutCard}>
           <div className={styles.aboutHeader}>
-            <img src={INLINE_LOGO_JPEG} alt="CPAMC" className={styles.aboutLogo} />
-            <div className={styles.aboutTitle}>{t('system_info.about_title')}</div>
+            <img src={INLINE_LOGO_JPEG} alt={BRAND_ABBR} className={styles.aboutLogo} />
+            <div className={styles.aboutTitle}>{BRAND_FULL_NAME_WITH_EDITION}</div>
           </div>
 
           <div className={styles.aboutInfoGrid}>
@@ -397,7 +398,7 @@ export function SystemPage() {
           <p className={styles.sectionDescription}>{t('system_info.quick_links_desc')}</p>
           <div className={styles.quickLinks}>
             <a
-              href="https://github.com/router-for-me/CLIProxyAPI"
+              href={QUICK_LINKS.mainRepo}
               target="_blank"
               rel="noopener noreferrer"
               className={styles.linkCard}
@@ -415,7 +416,7 @@ export function SystemPage() {
             </a>
 
             <a
-              href="https://github.com/router-for-me/Cli-Proxy-API-Management-Center"
+              href={QUICK_LINKS.managementAsset}
               target="_blank"
               rel="noopener noreferrer"
               className={styles.linkCard}
@@ -433,7 +434,7 @@ export function SystemPage() {
             </a>
 
             <a
-              href="https://help.router-for.me/"
+              href={QUICK_LINKS.docs}
               target="_blank"
               rel="noopener noreferrer"
               className={styles.linkCard}

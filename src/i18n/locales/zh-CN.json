@@ -1370,7 +1370,7 @@
     "models_error": "获取模型列表失败",
     "models_count": "可用模型 {{count}} 个",
     "version_check_title": "版本检查",
-    "version_check_desc": "调用 /latest-version 接口比对服务器版本，提示是否有可用更新。",
+    "version_check_desc": "调用 CPA-UV 提供的 /latest-version 接口比对服务器版本，检查是否有可用更新。",
     "version_current_label": "当前版本",
     "version_latest_label": "最新版本",
     "version_check_button": "检查更新",
@@ -1382,13 +1382,13 @@
     "version_current_missing": "未获取到服务器版本号，暂无法比对",
     "version_unknown": "未知",
     "quick_links_title": "快捷链接",
-    "quick_links_desc": "访问项目仓库和文档，获取帮助和更新。",
+    "quick_links_desc": "访问 CPA-UV 主仓库、已发布管理页和更新说明。",
     "link_main_repo": "主程序仓库",
-    "link_main_repo_desc": "CLI Proxy API 核心程序源代码",
+    "link_main_repo_desc": "Blackblock-inc/CPA-UV 的主程序与同步源代码",
     "link_webui_repo": "WebUI 仓库",
-    "link_webui_repo_desc": "管理中心前端界面源代码",
+    "link_webui_repo_desc": "CPA-UV 仓库内已发布的 management.html 管理页",
     "link_docs": "使用教程",
-    "link_docs_desc": "配置指南和使用说明",
+    "link_docs_desc": "CPA-UV 的 README、部署说明与更新指引",
     "clear_login_title": "本地登录信息",
     "clear_login_desc": "清理本地保存的登录信息并退出登录，不会影响使用统计中的价格设置。",
     "clear_login_button": "清理登录信息",
@@ -1483,9 +1483,9 @@
     "toggle_collapse": "收起侧边栏"
   },
   "footer": {
-    "api_version": "CLI Proxy API 版本",
+    "api_version": "CPA-UV 服务端版本",
     "build_date": "构建时间",
-    "version": "管理中心版本",
+    "version": "CPA-UV 管理中心版本",
     "author": "作者"
   }
 }
