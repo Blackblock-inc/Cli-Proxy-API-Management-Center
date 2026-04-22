@@ -166,33 +166,33 @@ const formatSuccessRate = (requests: number, success: number, locale: string) =>
   return `${formatter.format(ratio)}%`;
 };
 
+const getQuotaToneValueColor = (percent: number | null) => {
+  if (percent === null) {
+    return 'color-mix(in srgb, var(--text-secondary, #64748b) 88%, var(--text-primary, #0f172a))';
+  }
+
+  if (percent >= 80) {
+    return '#4d8dff';
+  }
+  if (percent >= 60) {
+    return '#2ac36d';
+  }
+  if (percent >= 30) {
+    return '#f0be36';
+  }
+  return '#ee5a5a';
+};
+
 const getSuccessTone = (requests: number, success: number) => {
   if (requests <= 0) {
     return {
-      valueColor:
-        'color-mix(in srgb, var(--text-secondary, #64748b) 88%, var(--text-primary, #0f172a))',
+      valueColor: getQuotaToneValueColor(null),
     };
   }
 
   const ratio = Math.max(0, Math.min(100, (success / requests) * 100));
-  if (ratio >= 99) {
-    return {
-      valueColor: 'color-mix(in srgb, #15803d 88%, var(--text-primary, #0f172a))',
-    };
-  }
-  if (ratio >= 95) {
-    return {
-      valueColor: 'color-mix(in srgb, #0f766e 86%, var(--text-primary, #0f172a))',
-    };
-  }
-  if (ratio >= 85) {
-    return {
-      valueColor: 'color-mix(in srgb, #b45309 84%, var(--text-primary, #0f172a))',
-    };
-  }
-
   return {
-    valueColor: 'color-mix(in srgb, #b91c1c 84%, var(--text-primary, #0f172a))',
+    valueColor: getQuotaToneValueColor(ratio),
   };
 };
 
@@ -225,19 +225,12 @@ const getQuotaToneClassName = (percent: number | null) => {
   return styles.quotaToneRed;
 };
 
-const formatQuotaRemainingLabel = (
-  percent: number | null,
-  _locale: string,
-  t: ReturnType<typeof useTranslation>['t'],
-  fallback: string
-) => {
+const formatQuotaRemainingLabel = (percent: number | null, locale: string, fallback: string) => {
   if (percent === null) {
     return fallback;
   }
 
-  return `${t('gemini_cli_quota.remaining_amount', {
-    count: Math.round(percent),
-  })}%`;
+  return `${formatLocaleNumber(Math.round(percent), locale)}%`;
 };
 
 const toNumber = (value: unknown): number => {
@@ -1221,7 +1214,6 @@ export function DashboardOverviewPage() {
                     ? null
                     : Math.max(0, Math.min(100, 100 - Number(windowItem.usedPercent))),
                   i18n.language,
-                  t,
                   fallbackRemainingLabel
                 ),
                 resetLabel: String(windowItem.resetLabel ?? '').trim() || fallbackResetLabel,
@@ -1369,12 +1361,10 @@ export function DashboardOverviewPage() {
                           className={`${styles.quotaBlock} ${quotaToneClassName}`}
                         >
                           <div className={styles.quotaTopRow}>
-                            <div className={styles.quotaSummary}>
-                              <span className={styles.quotaLabel}>{windowItem.label}:</span>
-                              <span className={styles.quotaRemaining}>
-                                {windowItem.remainingLabel}
-                              </span>
-                            </div>
+                            <span className={styles.quotaLabel}>{windowItem.label}:</span>
+                            <span className={styles.quotaRemaining}>
+                              {windowItem.remainingLabel}
+                            </span>
                             <span className={styles.quotaReset}>{windowItem.resetLabel}</span>
                           </div>
                           <div className={styles.quotaBar}>
