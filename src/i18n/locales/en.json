@@ -1379,7 +1379,7 @@
     "version_update_available": "An update is available: {{version}}",
     "version_updates_available": "Updates available: {{targets}}",
     "version_is_latest": "You are on the latest version",
-    "version_state_update_available": "Update available",
+    "version_state_update_available": "Outdated",
     "version_state_latest": "Up to date",
     "version_check_error": "Update check failed",
     "version_current_missing": "Server version is unavailable; cannot compare",

@@ -636,7 +636,7 @@ export function SystemPage() {
                 className={`${styles.versionState} ${
                   hasVersionCheckResult
                     ? managementUpdateAvailable
-                      ? styles.versionStateWarning
+                      ? styles.versionStateDanger
                       : styles.versionStateSuccess
                     : styles.versionStateWarning
                 }`}
@@ -657,7 +657,7 @@ export function SystemPage() {
                 className={`${styles.versionState} ${
                   hasVersionCheckResult
                     ? serverUpdateAvailable
-                      ? styles.versionStateWarning
+                      ? styles.versionStateDanger
                       : styles.versionStateSuccess
                     : styles.versionStateWarning
                 }`}

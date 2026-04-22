@@ -1379,7 +1379,7 @@
     "version_update_available": "有新版本可用：{{version}}",
     "version_updates_available": "发现可用更新：{{targets}}",
     "version_is_latest": "当前已是最新版本",
-    "version_state_update_available": "发现可用更新",
+    "version_state_update_available": "过时版本",
     "version_state_latest": "当前已是最新版本",
     "version_check_error": "检查更新失败",
     "version_current_missing": "未获取到服务器版本号，暂无法比对",
