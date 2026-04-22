@@ -8,7 +8,13 @@ import { useHeaderRefresh } from '@/hooks/useHeaderRefresh';
 import { authFilesApi, logsApi } from '@/services/api';
 import { parseLogLine } from '@/pages/hooks/logParsing';
 import { useAuthStore, useConfigStore } from '@/stores';
-import type { AuthFileItem, CodexQuotaWindow, GeminiKeyConfig, OpenAIProviderConfig, ProviderKeyConfig } from '@/types';
+import type {
+  AuthFileItem,
+  CodexQuotaWindow,
+  GeminiKeyConfig,
+  OpenAIProviderConfig,
+  ProviderKeyConfig,
+} from '@/types';
 import type { CredentialInfo } from '@/types/sourceInfo';
 import { buildSourceInfoMap, resolveSourceDisplay } from '@/utils/sourceResolver';
 import { parseTimestampMs } from '@/utils/timestamp';
@@ -203,17 +209,35 @@ const getQuotaChipLabel = (windowItem: CodexQuotaWindow) => {
   return fallback ? fallback.slice(0, 6).toUpperCase() : 'QUOTA';
 };
 
-const getQuotaFillClassName = (percent: number | null) => {
+const getQuotaToneClassName = (percent: number | null) => {
   if (percent === null) {
-    return styles.quotaFillEmpty;
+    return styles.quotaToneEmpty;
   }
-  if (percent >= 70) {
-    return styles.quotaFillGood;
+  if (percent >= 80) {
+    return styles.quotaToneBlue;
   }
-  if (percent >= 35) {
-    return styles.quotaFillWarn;
+  if (percent >= 60) {
+    return styles.quotaToneGreen;
   }
-  return styles.quotaFillLow;
+  if (percent >= 30) {
+    return styles.quotaToneYellow;
+  }
+  return styles.quotaToneRed;
+};
+
+const formatQuotaRemainingLabel = (
+  percent: number | null,
+  _locale: string,
+  t: ReturnType<typeof useTranslation>['t'],
+  fallback: string
+) => {
+  if (percent === null) {
+    return fallback;
+  }
+
+  return `${t('gemini_cli_quota.remaining_amount', {
+    count: Math.round(percent),
+  })}%`;
 };
 
 const toNumber = (value: unknown): number => {
@@ -345,7 +369,8 @@ const countOverviewUsageLogSignals = (lines: string[]) =>
 const getCodexAuthIndex = (file?: Partial<AuthFileItem> | null) =>
   normalizeAuthIndex(file?.['auth_index'] ?? file?.authIndex);
 
-const isCodexAuthFile = (file?: AuthFileItem | null) => Boolean(file && CODEX_CONFIG.filterFn(file));
+const isCodexAuthFile = (file?: AuthFileItem | null) =>
+  Boolean(file && CODEX_CONFIG.filterFn(file));
 
 const buildCodexUsageByAuthIndex = (usage: unknown): Map<string, CodexUsageStats> => {
   const usageMap = new Map<string, CodexUsageStats>();
@@ -736,7 +761,10 @@ function OverviewRequestEventsCard({
         Math.max(toNumber(detail.tokens?.cached_tokens), 0),
         Math.max(toNumber(detail.tokens?.cache_tokens), 0)
       );
-      const totalTokens = Math.max(toNumber(detail.tokens?.total_tokens), extractTotalTokens(detail));
+      const totalTokens = Math.max(
+        toNumber(detail.tokens?.total_tokens),
+        extractTotalTokens(detail)
+      );
       const eventFingerprint = buildRequestEventFingerprint([
         Number.isNaN(timestampMs) ? 0 : timestampMs,
         timestamp || '',
@@ -928,18 +956,14 @@ function OverviewRequestEventsCard({
                       </span>
                     </td>
                     {hasLatencyData && (
-                      <td className={styles.eventsMetricCell}>
-                        {formatDurationMs(row.latencyMs)}
-                      </td>
+                      <td className={styles.eventsMetricCell}>{formatDurationMs(row.latencyMs)}</td>
                     )}
                     <td className={styles.eventsMetricCell}>{row.inputTokens.toLocaleString()}</td>
                     <td className={styles.eventsMetricCell}>{row.outputTokens.toLocaleString()}</td>
                     <td className={styles.eventsMetricCell}>
                       {row.reasoningTokens.toLocaleString()}
                     </td>
-                    <td className={styles.eventsMetricCell}>
-                      {row.cachedTokens.toLocaleString()}
-                    </td>
+                    <td className={styles.eventsMetricCell}>{row.cachedTokens.toLocaleString()}</td>
                     <td className={styles.eventsMetricCell}>{row.totalTokens.toLocaleString()}</td>
                   </tr>
                 ))}
@@ -1180,6 +1204,7 @@ export function DashboardOverviewPage() {
         const quotaEntry = codexQuotaByFile[file.name];
         const quotaWindows = Array.isArray(quotaEntry?.windows) ? quotaEntry.windows : [];
         const fallbackResetLabel = quotaLoading || filesLoading ? t('common.loading') : '--';
+        const fallbackRemainingLabel = quotaLoading || filesLoading ? t('common.loading') : '--';
         const successTone = getSuccessTone(usageStats.requests, usageStats.success);
 
         const windows =
@@ -1191,6 +1216,14 @@ export function DashboardOverviewPage() {
                   windowItem.usedPercent === null || windowItem.usedPercent === undefined
                     ? null
                     : Math.max(0, Math.min(100, 100 - Number(windowItem.usedPercent))),
+                remainingLabel: formatQuotaRemainingLabel(
+                  windowItem.usedPercent === null || windowItem.usedPercent === undefined
+                    ? null
+                    : Math.max(0, Math.min(100, 100 - Number(windowItem.usedPercent))),
+                  i18n.language,
+                  t,
+                  fallbackRemainingLabel
+                ),
                 resetLabel: String(windowItem.resetLabel ?? '').trim() || fallbackResetLabel,
               }))
             : [
@@ -1198,12 +1231,14 @@ export function DashboardOverviewPage() {
                   id: `${file.name}:primary`,
                   label: '5H',
                   percent: null,
+                  remainingLabel: fallbackRemainingLabel,
                   resetLabel: fallbackResetLabel,
                 },
                 {
                   id: `${file.name}:secondary`,
                   label: '7D',
                   percent: null,
+                  remainingLabel: fallbackRemainingLabel,
                   resetLabel: fallbackResetLabel,
                 },
               ];
@@ -1273,7 +1308,9 @@ export function DashboardOverviewPage() {
         >
           {accountCards.length === 0 ? (
             <div className={styles.emptyState}>
-              {!hasUsageSnapshot && filesLoading ? t('common.loading') : t('dashboard.no_codex_accounts')}
+              {!hasUsageSnapshot && filesLoading
+                ? t('common.loading')
+                : t('dashboard.no_codex_accounts')}
             </div>
           ) : (
             <div className={styles.accountGrid}>
@@ -1323,21 +1360,32 @@ export function DashboardOverviewPage() {
                   </div>
 
                   <div className={styles.quotaGrid}>
-                    {account.windows.map((windowItem) => (
-                      <div key={windowItem.id} className={styles.quotaChip}>
-                        <span className={styles.quotaLabel}>{windowItem.label}</span>
-                        <span className={styles.quotaPercent}>
-                          {windowItem.percent === null ? '--' : `${Math.round(windowItem.percent)}%`}
-                        </span>
-                        <div className={styles.quotaBar}>
-                          <div
-                            className={`${styles.quotaFill} ${getQuotaFillClassName(windowItem.percent)}`}
-                            style={{ width: `${windowItem.percent ?? 0}%` }}
-                          />
+                    {account.windows.map((windowItem) => {
+                      const quotaToneClassName = getQuotaToneClassName(windowItem.percent);
+
+                      return (
+                        <div
+                          key={windowItem.id}
+                          className={`${styles.quotaBlock} ${quotaToneClassName}`}
+                        >
+                          <div className={styles.quotaTopRow}>
+                            <div className={styles.quotaSummary}>
+                              <span className={styles.quotaLabel}>{windowItem.label}:</span>
+                              <span className={styles.quotaRemaining}>
+                                {windowItem.remainingLabel}
+                              </span>
+                            </div>
+                            <span className={styles.quotaReset}>{windowItem.resetLabel}</span>
+                          </div>
+                          <div className={styles.quotaBar}>
+                            <div
+                              className={`${styles.quotaFill} ${quotaToneClassName}`}
+                              style={{ width: `${windowItem.percent ?? 0}%` }}
+                            />
+                          </div>
                         </div>
-                        <span className={styles.quotaReset}>{windowItem.resetLabel}</span>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               ))}
