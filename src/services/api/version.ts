@@ -13,12 +13,18 @@ export interface LatestVersionResponse {
   'management-source'?: string;
   'install-supported'?: boolean;
   'update-available'?: boolean;
+  'server-update-available'?: boolean;
+  'management-update-available'?: boolean;
   'install-note'?: string;
   'asset-name'?: string;
   current?: VersionSnapshotResponse;
   latest?: VersionSnapshotResponse;
   'current-version'?: string;
   'latest-version'?: string;
+  'management-current'?: VersionSnapshotResponse;
+  'management-latest'?: VersionSnapshotResponse;
+  'management-current-version'?: string;
+  'management-latest-version'?: string;
 }
 
 export interface InstallUpdateResponse {

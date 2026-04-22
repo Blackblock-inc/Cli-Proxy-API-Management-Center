@@ -45,6 +45,71 @@ const MODEL_CATEGORY_ICONS: Record<string, string | { light: string; dark: strin
   minimax: iconMinimax,
 };
 
+const VERSION_CHECK_CACHE_KEY = 'cpa-version-check-cache-v1';
+
+interface VersionCheckIdentity {
+  apiBase: string;
+  serverVersion: string;
+  serverBuildDate: string;
+  managementVersion: string;
+}
+
+interface VersionCheckCacheRecord {
+  identity: VersionCheckIdentity;
+  versionDetails: LatestVersionResponse;
+  checkedAt: number;
+}
+
+const normalizeVersionCheckIdentityValue = (value: unknown) =>
+  typeof value === 'string' ? value.trim() : '';
+
+const createVersionCheckIdentity = ({
+  apiBase,
+  serverVersion,
+  serverBuildDate,
+  managementVersion,
+}: Partial<VersionCheckIdentity>): VersionCheckIdentity => ({
+  apiBase: normalizeVersionCheckIdentityValue(apiBase),
+  serverVersion: normalizeVersionCheckIdentityValue(serverVersion),
+  serverBuildDate: normalizeVersionCheckIdentityValue(serverBuildDate),
+  managementVersion: normalizeVersionCheckIdentityValue(managementVersion),
+});
+
+const isVersionCheckCacheRecord = (value: unknown): value is VersionCheckCacheRecord => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+
+  const candidate = value as Partial<VersionCheckCacheRecord>;
+  return (
+    Boolean(candidate.identity) &&
+    typeof candidate.identity === 'object' &&
+    !Array.isArray(candidate.identity) &&
+    Boolean(candidate.versionDetails) &&
+    typeof candidate.versionDetails === 'object' &&
+    !Array.isArray(candidate.versionDetails) &&
+    typeof candidate.checkedAt === 'number'
+  );
+};
+
+const versionCheckIdentityMatches = (
+  current: VersionCheckIdentity,
+  cached: VersionCheckIdentity
+) => {
+  const keys: Array<keyof VersionCheckIdentity> = [
+    'apiBase',
+    'serverVersion',
+    'serverBuildDate',
+    'managementVersion',
+  ];
+
+  return keys.every((key) => {
+    const currentValue = normalizeVersionCheckIdentityValue(current[key]);
+    const cachedValue = normalizeVersionCheckIdentityValue(cached[key]);
+    return !(currentValue && cachedValue && currentValue !== cachedValue);
+  });
+};
+
 const getPanelRepositoryFromConfig = (value: unknown) => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return '';
   const remoteManagement = (value as Record<string, unknown>)['remote-management'];
@@ -95,9 +160,8 @@ export function SystemPage() {
   const requestLogDirty = requestLogDraft !== requestLogEnabled;
   const canEditRequestLog = auth.connectionStatus === 'connected' && Boolean(config);
 
-  const appVersion =
-    formatWebUIVersionInfo(__APP_VERSION__).displayVersion || t('system_info.version_unknown');
-  const apiVersion = auth.serverVersion || t('system_info.version_unknown');
+  const appVersionInfo = formatWebUIVersionInfo(__APP_VERSION__);
+  const appVersion = appVersionInfo.displayVersion || t('system_info.version_unknown');
   const buildTime = auth.serverBuildDate
     ? new Date(auth.serverBuildDate).toLocaleString(i18n.language)
     : t('system_info.version_unknown');
@@ -106,16 +170,44 @@ export function SystemPage() {
     () => resolveQuickLinks(versionDetails?.repository || configuredRepository),
     [configuredRepository, versionDetails?.repository]
   );
-  const currentVersionDisplay =
+  const currentVersionCheckIdentity = useMemo(
+    () =>
+      createVersionCheckIdentity({
+        apiBase: auth.apiBase ?? undefined,
+        serverVersion: auth.serverVersion ?? undefined,
+        serverBuildDate: auth.serverBuildDate ?? undefined,
+        managementVersion: appVersionInfo.displayVersion || __APP_VERSION__,
+      }),
+    [appVersionInfo.displayVersion, auth.apiBase, auth.serverBuildDate, auth.serverVersion]
+  );
+  const hasVersionCheckResult = versionDetails !== null;
+  const serverCurrentDisplay =
     versionDetails?.current?.['display-version'] ||
-    formatServerVersionInfo(apiVersion).displayVersion ||
+    formatServerVersionInfo(auth.serverVersion).displayVersion ||
     t('system_info.version_unknown');
-  const latestVersionDisplay =
+  const latestServerVersionDisplay = versionDetails?.['latest-version']
+    ? formatServerVersionInfo(versionDetails['latest-version']).displayVersion
+    : '';
+  const serverLatestDisplay =
     versionDetails?.latest?.['display-version'] ||
-    formatServerVersionInfo(versionDetails?.['latest-version']).displayVersion ||
-    t('system_info.version_check_idle');
+    latestServerVersionDisplay ||
+    (hasVersionCheckResult
+      ? t('system_info.version_unknown')
+      : t('system_info.version_check_idle'));
+  const managementCurrentDisplay =
+    versionDetails?.['management-current-version'] || appVersion || t('system_info.version_unknown');
+  const managementLatestDisplay =
+    versionDetails?.['management-latest-version'] ||
+    versionDetails?.['management-latest']?.['display-version'] ||
+    (hasVersionCheckResult
+      ? t('system_info.version_unknown')
+      : t('system_info.version_check_idle'));
   const installSupported = Boolean(versionDetails?.['install-supported']);
   const updateAvailable = Boolean(versionDetails?.['update-available']);
+  const serverUpdateAvailable = Boolean(
+    versionDetails?.['server-update-available'] ?? versionDetails?.['update-available']
+  );
+  const managementUpdateAvailable = Boolean(versionDetails?.['management-update-available']);
 
   const getIconForCategory = (categoryId: string): string | null => {
     const iconEntry = MODEL_CATEGORY_ICONS[categoryId];
@@ -291,14 +383,38 @@ export function SystemPage() {
     try {
       const data = await versionApi.checkLatest();
       setVersionDetails(data);
-      const latest = data?.['latest-version'] || data?.latest?.['display-version'] || '';
-      if (!latest) {
+      const availableTargets: string[] = [];
+      const latestServer = data?.['latest-version'] || data?.latest?.['display-version'] || '';
+      const latestManagement =
+        data?.['management-latest-version'] ||
+        data?.['management-latest']?.['display-version'] ||
+        '';
+
+      if (!latestServer && !latestManagement) {
         showNotification(t('system_info.version_check_error'), 'error');
         return;
       }
 
-      if (data?.['update-available']) {
-        showNotification(t('system_info.version_update_available', { version: latest }), 'warning');
+      if (data?.['management-update-available']) {
+        availableTargets.push(
+          `${t('footer.version')}: ${latestManagement || t('system_info.version_unknown')}`
+        );
+      }
+
+      if (data?.['server-update-available'] ?? data?.['update-available']) {
+        availableTargets.push(
+          `${t('footer.api_version')}: ${latestServer || t('system_info.version_unknown')}`
+        );
+      }
+
+      if (availableTargets.length > 0) {
+        showNotification(
+          t('system_info.version_updates_available', {
+            defaultValue: 'Updates available: {{targets}}',
+            targets: availableTargets.join(' | '),
+          }),
+          'warning'
+        );
       } else {
         showNotification(t('system_info.version_is_latest'), 'success');
       }
@@ -312,12 +428,27 @@ export function SystemPage() {
     }
   }, [showNotification, t]);
 
+  const getVersionStateText = useCallback(
+    (isUpdateAvailable: boolean) => {
+      if (checkingVersion) {
+        return t('system_info.version_checking');
+      }
+      if (!hasVersionCheckResult) {
+        return t('system_info.version_check_idle');
+      }
+      return isUpdateAvailable
+        ? t('system_info.version_state_update_available', { defaultValue: 'Update available' })
+        : t('system_info.version_state_latest', { defaultValue: 'Up to date' });
+    },
+    [checkingVersion, hasVersionCheckResult, t]
+  );
+
   const handleInstallUpdate = useCallback(() => {
     showConfirmation({
       title: t('system_info.version_install_button', { defaultValue: 'Install update' }),
       message: t('system_info.version_install_confirm', {
-        version: latestVersionDisplay,
-        defaultValue: `Install ${latestVersionDisplay} now? The local CPA service will restart during the update.`,
+        version: serverLatestDisplay,
+        defaultValue: `Install ${serverLatestDisplay} now? The local CPA service will restart during the update.`,
       }),
       variant: 'danger',
       confirmText: t('system_info.version_install_button', { defaultValue: 'Install update' }),
@@ -353,7 +484,7 @@ export function SystemPage() {
         }
       },
     });
-  }, [latestVersionDisplay, showConfirmation, showNotification, t]);
+  }, [serverLatestDisplay, showConfirmation, showNotification, t]);
 
   useEffect(() => {
     fetchConfig().catch(() => {
@@ -366,6 +497,50 @@ export function SystemPage() {
       setRequestLogDraft(requestLogEnabled);
     }
   }, [requestLogModalOpen, requestLogTouched, requestLogEnabled]);
+
+  useEffect(() => {
+    if (typeof localStorage === 'undefined') return;
+    if (auth.connectionStatus !== 'connected') return;
+
+    try {
+      const rawCache = localStorage.getItem(VERSION_CHECK_CACHE_KEY);
+      if (!rawCache) return;
+
+      const parsedCache = JSON.parse(rawCache);
+      if (!isVersionCheckCacheRecord(parsedCache)) {
+        localStorage.removeItem(VERSION_CHECK_CACHE_KEY);
+        return;
+      }
+
+      if (!versionCheckIdentityMatches(currentVersionCheckIdentity, parsedCache.identity)) {
+        localStorage.removeItem(VERSION_CHECK_CACHE_KEY);
+        setVersionDetails(null);
+        return;
+      }
+
+      setVersionDetails((previous) => previous ?? parsedCache.versionDetails);
+    } catch {
+      localStorage.removeItem(VERSION_CHECK_CACHE_KEY);
+    }
+  }, [auth.connectionStatus, currentVersionCheckIdentity]);
+
+  useEffect(() => {
+    if (typeof localStorage === 'undefined') return;
+    if (auth.connectionStatus !== 'connected') return;
+    if (!versionDetails) return;
+
+    const payload: VersionCheckCacheRecord = {
+      identity: currentVersionCheckIdentity,
+      versionDetails,
+      checkedAt: Date.now(),
+    };
+
+    try {
+      localStorage.setItem(VERSION_CHECK_CACHE_KEY, JSON.stringify(payload));
+    } catch {
+      // Ignore storage write failures and keep the in-memory version result.
+    }
+  }, [auth.connectionStatus, currentVersionCheckIdentity, versionDetails]);
 
   useEffect(() => {
     return () => {
@@ -421,55 +596,6 @@ export function SystemPage() {
           <div className={styles.aboutHeader}>
             <img src={INLINE_LOGO_JPEG} alt={BRAND_ABBR} className={styles.aboutLogo} />
             <div className={styles.aboutTitle}>{BRAND_FULL_NAME_WITH_EDITION}</div>
-          </div>
-
-          <div className={styles.aboutInfoGrid}>
-            <button
-              type="button"
-              className={`${styles.infoTile} ${styles.tapTile}`}
-              onClick={handleInfoVersionTap}
-            >
-              <div className={styles.tileHeader}>
-                <div className={styles.tileLabel}>{t('footer.version')}</div>
-              </div>
-              <div className={styles.tileValue}>{appVersion}</div>
-            </button>
-
-            <div className={styles.infoTile}>
-              <div className={styles.tileHeader}>
-                <div className={styles.tileLabel}>{t('footer.api_version')}</div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className={styles.tileAction}
-                  onClick={() => void handleVersionCheck()}
-                  loading={checkingVersion}
-                  title={t('system_info.version_check_button')}
-                  aria-label={t('system_info.version_check_button')}
-                >
-                  {t('system_info.version_check_button')}
-                </Button>
-              </div>
-              <div className={styles.tileValue}>{apiVersion}</div>
-            </div>
-
-            <div className={styles.infoTile}>
-              <div className={styles.tileLabel}>{t('footer.build_date')}</div>
-              <div className={styles.tileValue}>{buildTime}</div>
-            </div>
-
-            <div className={styles.infoTile}>
-              <div className={styles.tileLabel}>{t('connection.status')}</div>
-              <div className={styles.tileValue}>{t(`common.${auth.connectionStatus}_status`)}</div>
-              <div className={styles.tileSub}>{auth.apiBase || '-'}</div>
-            </div>
-          </div>
-        </Card>
-
-        <Card
-          title={t('system_info.version_check_title')}
-          extra={
             <div className={styles.versionActions}>
               <Button
                 variant="secondary"
@@ -488,40 +614,68 @@ export function SystemPage() {
                 {t('system_info.version_install_button', { defaultValue: 'Install update' })}
               </Button>
             </div>
-          }
-        >
-          <div className={styles.versionCheck}>
-            <p className={styles.sectionDescription}>{t('system_info.version_check_desc')}</p>
-            <div className={styles.versionInfo}>
-              <div className={styles.versionItem}>
-                <div className={styles.versionLabel}>{t('system_info.version_current_label')}</div>
-                <div className={styles.versionValue}>{currentVersionDisplay}</div>
+            {versionDetails?.['install-note'] && (
+              <div className={styles.versionHint}>{versionDetails['install-note']}</div>
+            )}
+          </div>
+
+          <div className={styles.aboutInfoGrid}>
+            <button
+              type="button"
+              className={`${styles.infoTile} ${styles.tapTile}`}
+              onClick={handleInfoVersionTap}
+            >
+              <div className={styles.tileHeader}>
+                <div className={styles.tileLabel}>{t('footer.version')}</div>
               </div>
-              <div className={styles.versionItem}>
-                <div className={styles.versionLabel}>{t('system_info.version_latest_label')}</div>
-                <div className={styles.versionValue}>{latestVersionDisplay}</div>
+              <div className={styles.tileValue}>{managementCurrentDisplay}</div>
+              <div className={styles.tileSub}>
+                {t('system_info.version_latest_label')}: {managementLatestDisplay}
               </div>
-              <div className={styles.versionItem}>
-                <div className={styles.versionLabel}>
-                  {t('system_info.version_repo_label', { defaultValue: 'Update repository' })}
-                </div>
-                <div className={styles.versionValue}>{quickLinks.mainRepo}</div>
+              <div
+                className={`${styles.versionState} ${
+                  hasVersionCheckResult
+                    ? managementUpdateAvailable
+                      ? styles.versionStateWarning
+                      : styles.versionStateSuccess
+                    : styles.versionStateWarning
+                }`}
+              >
+                {getVersionStateText(managementUpdateAvailable)}
               </div>
-              <div className={styles.versionItem}>
-                <div className={styles.versionLabel}>
-                  {t('system_info.version_asset_label', { defaultValue: 'Platform package' })}
-                </div>
-                <div className={styles.versionValue}>
-                  {versionDetails?.['asset-name'] ||
-                    t('system_info.version_asset_pending', {
-                      defaultValue: 'Check for updates to load the package name',
-                    })}
-                </div>
+            </button>
+
+            <div className={styles.infoTile}>
+              <div className={styles.tileHeader}>
+                <div className={styles.tileLabel}>{t('footer.api_version')}</div>
+              </div>
+              <div className={styles.tileValue}>{serverCurrentDisplay}</div>
+              <div className={styles.tileSub}>
+                {t('system_info.version_latest_label')}: {serverLatestDisplay}
+              </div>
+              <div
+                className={`${styles.versionState} ${
+                  hasVersionCheckResult
+                    ? serverUpdateAvailable
+                      ? styles.versionStateWarning
+                      : styles.versionStateSuccess
+                    : styles.versionStateWarning
+                }`}
+              >
+                {getVersionStateText(serverUpdateAvailable)}
               </div>
             </div>
-            {versionDetails?.['install-note'] && (
-              <div className="hint">{versionDetails['install-note']}</div>
-            )}
+
+            <div className={styles.infoTile}>
+              <div className={styles.tileLabel}>{t('footer.build_date')}</div>
+              <div className={styles.tileValue}>{buildTime}</div>
+            </div>
+
+            <div className={styles.infoTile}>
+              <div className={styles.tileLabel}>{t('connection.status')}</div>
+              <div className={styles.tileValue}>{t(`common.${auth.connectionStatus}_status`)}</div>
+              <div className={styles.tileSub}>{auth.apiBase || '-'}</div>
+            </div>
           </div>
         </Card>
 
