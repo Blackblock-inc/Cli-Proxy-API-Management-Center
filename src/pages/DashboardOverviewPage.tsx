@@ -30,7 +30,7 @@ import {
 import styles from './DashboardOverviewPage.module.scss';
 
 const OVERVIEW_TIME_RANGE = '24h' as const;
-const OVERVIEW_MAX_EVENTS = 10;
+const OVERVIEW_MAX_EVENTS = 5;
 const FAST_POLL_MS = 900;
 const BASE_POLL_MS = 1800;
 const IDLE_POLL_MS = 5000;
@@ -1138,6 +1138,25 @@ export function DashboardOverviewPage() {
         .join('|')}`,
     [codexFiles, quotaScopeKey]
   );
+  const noUsageCodexFiles = useMemo(
+    () =>
+      codexFiles.filter((file) => {
+        const authIndex = getCodexAuthIndex(file);
+        if (!authIndex) {
+          return false;
+        }
+        const usageStats = usageByAuthIndex.get(authIndex);
+        return !usageStats || usageStats.requests === 0;
+      }),
+    [codexFiles, usageByAuthIndex]
+  );
+  const noUsageQuotaRefreshSignature = useMemo(
+    () =>
+      `${quotaScopeKey}::${noUsageCodexFiles
+        .map((file) => `${file.name}:${getCodexAuthIndex(file) ?? '-'}`)
+        .join('|')}`,
+    [noUsageCodexFiles, quotaScopeKey]
+  );
 
   useEffect(() => {
     if (connectionStatus !== 'connected') {
@@ -1165,6 +1184,31 @@ export function DashboardOverviewPage() {
     quotaSyncSignatureRef.current = codexQuotaSignature;
     void loadCodexQuota(codexFiles);
   }, [codexFiles, codexQuotaSignature, connectionStatus, filesLoading, loadCodexQuota]);
+
+  useEffect(() => {
+    if (connectionStatus !== 'connected' || noUsageCodexFiles.length === 0) {
+      return;
+    }
+
+    void refreshCodexQuotaSubset(noUsageCodexFiles);
+
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      void refreshCodexQuotaSubset(noUsageCodexFiles);
+    }, 45_000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [
+    connectionStatus,
+    noUsageCodexFiles,
+    noUsageQuotaRefreshSignature,
+    refreshCodexQuotaSubset,
+  ]);
 
   const totalRequests = useMemo(
     () => Array.from(usageByAuthIndex.values()).reduce((sum, item) => sum + item.requests, 0),

@@ -12,7 +12,7 @@
   flex: 1 1 auto;
   min-height: 0;
   display: grid;
-  grid-template-rows: minmax(320px, 44%) minmax(0, 1fr);
+  grid-template-rows: minmax(360px, 56%) minmax(260px, 1fr);
   gap: 14px;
 }
 
@@ -130,9 +130,9 @@
   min-height: 0;
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  grid-auto-rows: minmax(0, 1fr);
+  grid-auto-rows: minmax(0, auto);
   gap: 8px;
-  align-content: stretch;
+  align-content: start;
   overflow: auto;
   padding-right: 2px;
 }
@@ -141,9 +141,10 @@
   min-width: 0;
   min-height: 0;
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
-  gap: 6px;
-  padding: 10px;
+  grid-template-rows: auto auto auto;
+  gap: 8px;
+  align-self: start;
+  padding: 12px;
   border-radius: 14px;
   border: 1px solid var(--border-color);
   background: var(--bg-secondary);
@@ -249,6 +250,7 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
+  align-items: stretch;
 }
 
 .quotaBlock {
@@ -256,6 +258,8 @@
   display: grid;
   grid-template-rows: auto auto;
   gap: 8px;
+  min-height: 78px;
+  align-content: start;
   padding: 8px 10px;
   border-radius: 12px;
   border: 1px solid color-mix(in srgb, var(--quota-accent-border) 72%, var(--border-color));
@@ -289,28 +293,29 @@
 
 .quotaTopRow {
   min-width: 0;
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: baseline;
-  justify-content: flex-start;
-  gap: 6px;
-  flex-wrap: nowrap;
-  overflow: hidden;
-  white-space: nowrap;
+  column-gap: 8px;
+  row-gap: 4px;
 }
 
 .quotaLabel {
-  flex: 0 0 auto;
   color: var(--quota-accent);
   font-weight: 700;
 }
 
 .quotaRemaining {
-  flex: 0 0 auto;
+  min-width: 0;
   color: var(--text-primary);
   font-weight: 800;
   line-height: 1.2;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .quotaBar {
@@ -404,7 +409,7 @@
 
 .quotaReset {
   min-width: 0;
-  flex: 0 1 auto;
+  grid-column: 1 / -1;
   color: color-mix(in srgb, var(--quota-accent) 48%, var(--text-secondary));
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
