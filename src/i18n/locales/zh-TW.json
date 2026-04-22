@@ -1408,7 +1408,7 @@
     "version_is_latest": "目前已是最新版本",
     "version_check_error": "檢查更新失敗",
     "version_current_missing": "未取得到伺服器版本號，暫無法比對",
-    "version_unknown": "未知",
+    "version_unknown": "Unknown",
     "quick_links_title": "快速連結",
     "quick_links_desc": "存取 CPA-UV 主儲存庫、已發布管理頁與更新說明。",
     "link_main_repo": "主程式儲存庫",

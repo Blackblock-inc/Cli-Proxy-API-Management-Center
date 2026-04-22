@@ -191,17 +191,13 @@ export function SystemPage() {
   const serverLatestDisplay =
     versionDetails?.latest?.['display-version'] ||
     latestServerVersionDisplay ||
-    (hasVersionCheckResult
-      ? t('system_info.version_unknown')
-      : t('system_info.version_check_idle'));
+    t('system_info.version_unknown');
   const managementCurrentDisplay =
     versionDetails?.['management-current-version'] || appVersion || t('system_info.version_unknown');
   const managementLatestDisplay =
     versionDetails?.['management-latest-version'] ||
     versionDetails?.['management-latest']?.['display-version'] ||
-    (hasVersionCheckResult
-      ? t('system_info.version_unknown')
-      : t('system_info.version_check_idle'));
+    t('system_info.version_unknown');
   const installSupported = Boolean(versionDetails?.['install-supported']);
   const updateAvailable = Boolean(versionDetails?.['update-available']);
   const serverUpdateAvailable = Boolean(

@@ -1383,7 +1383,7 @@
     "version_state_latest": "当前已是最新版本",
     "version_check_error": "检查更新失败",
     "version_current_missing": "未获取到服务器版本号，暂无法比对",
-    "version_unknown": "未知",
+    "version_unknown": "Unknown",
     "version_install_button": "安装更新",
     "version_install_confirm": "现在安装 {{version}} 吗？更新期间本地 CPA 服务会自动重启。",
     "version_install_started": "更新包已下载，CPA-UV 正在重启并安装更新。",
